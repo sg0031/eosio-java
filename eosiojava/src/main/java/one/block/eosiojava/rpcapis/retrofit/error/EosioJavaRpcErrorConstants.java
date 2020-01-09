@@ -24,6 +24,11 @@ public class EosioJavaRpcErrorConstants {
     public static final String RPC_PROVIDER_BASE_URL_EMPTY = "Base URL cannot be empty or null.";
 
     /**
+     * Error message gets thrown if input State URL is empty.
+     */
+    public static final String RPC_PROVIDER_STATE_HISTORY_URL_EMPTY = "State Histroy URL cannot be empty or null.";
+
+    /**
      * Error message gets thrown if {@link RPCProviderImpl#getInfo()} returns error.
      */
     public static final String RPC_PROVIDER_ERROR_GETTING_CHAIN_INFO = "Error retrieving chain information.";

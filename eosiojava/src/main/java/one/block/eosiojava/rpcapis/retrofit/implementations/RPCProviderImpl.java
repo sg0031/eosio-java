@@ -52,7 +52,13 @@ public class RPCProviderImpl implements IRPCProvider {
     private String baseURL;
 
     @NotNull
-    private Retrofit retrofit;
+    private String stateHistoryURL;
+
+    @NotNull
+    private Retrofit retrofitForBase;
+
+    @NotNull
+    private Retrofit retrofitForState;
 
     @NotNull
     private RPCProviderApi rpcProviderApi;
@@ -62,8 +68,8 @@ public class RPCProviderImpl implements IRPCProvider {
      * @param baseURL Base URL to use for building requests.
      * @throws EosioJavaRpcProviderInitializerError thrown if the base URL passed in is null.
      */
-    public RPCProviderImpl(@NotNull String baseURL) throws EosioJavaRpcProviderInitializerError {
-        this(baseURL, false);
+    public RPCProviderImpl(@NotNull String baseURL, @NotNull String stateHistoryURL) throws EosioJavaRpcProviderInitializerError {
+        this(baseURL, false, stateHistoryURL, false);
     }
 
     /**
@@ -72,9 +78,12 @@ public class RPCProviderImpl implements IRPCProvider {
      * @param enableDebug Enable Network Log at {@link Level#BODY} level
      * @throws EosioJavaRpcProviderInitializerError thrown if the base URL passed in is null.
      */
-    public RPCProviderImpl(@NotNull String baseURL, boolean enableDebug) throws EosioJavaRpcProviderInitializerError {
+    public RPCProviderImpl(@NotNull String baseURL, boolean enableDebug, @NotNull String stateHistoryURL, boolean stateEnableDebug) throws EosioJavaRpcProviderInitializerError {
         if(baseURL == null || baseURL.isEmpty()) {
             throw new EosioJavaRpcProviderInitializerError(EosioJavaRpcErrorConstants.RPC_PROVIDER_BASE_URL_EMPTY);
+        }
+        if(stateHistoryURL == null || stateHistoryURL.isEmpty()) {
+            throw  new EosioJavaRpcProviderInitializerError(EosioJavaRpcErrorConstants.RPC_PROVIDER_STATE_HISTORY_URL_EMPTY);
         }
 
         this.baseURL = baseURL;
@@ -85,13 +94,13 @@ public class RPCProviderImpl implements IRPCProvider {
             httpClient.addInterceptor(httpLoggingInterceptor);
         }
 
-        this.retrofit = new Retrofit.Builder()
+        this.retrofitForBase = new Retrofit.Builder()
                 .baseUrl(this.baseURL)
                 .addConverterFactory(GsonConverterFactory.create())
                 .client(httpClient.build())
                 .build();
 
-        this.rpcProviderApi = this.retrofit.create(RPCProviderApi.class);
+        this.rpcProviderApi = this.retrofitForBase.create(RPCProviderApi.class);
     }
 
     /**
