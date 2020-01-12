@@ -49,44 +49,43 @@ import retrofit2.converter.gson.GsonConverterFactory;
 public class RPCProviderImpl implements IRPCProvider {
 
     @NotNull
-    private String baseURL;
+    private String chainURL;
 
     @NotNull
     private String stateHistoryURL;
 
     @NotNull
-    private Retrofit retrofitForBase;
+    private Retrofit retrofitForChain;
 
     @NotNull
     private Retrofit retrofitForState;
 
     @NotNull
-    private RPCProviderApi rpcProviderApi;
+    private RPCProviderApi rpcProviderApiChain;
+
+    @NotNull
+    private RPCProviderApi rpcProviderApiState;
 
     /**
      * Construct a new RPC provider instance given the base URL to use for building requests.
-     * @param baseURL Base URL to use for building requests.
+     * @param chainURL Base URL to use for building requests.
      * @throws EosioJavaRpcProviderInitializerError thrown if the base URL passed in is null.
      */
-    public RPCProviderImpl(@NotNull String baseURL, @NotNull String stateHistoryURL) throws EosioJavaRpcProviderInitializerError {
-        this(baseURL, false, stateHistoryURL, false);
+    public RPCProviderImpl(@NotNull String chainURL, @NotNull String stateHistoryURL) throws EosioJavaRpcProviderInitializerError {
+        this(chainURL, false, stateHistoryURL, false);
     }
 
     /**
      * Construct a new RPC provider instance given the base URL to use for building requests.
-     * @param baseURL Base URL to use for building requests.
+     * @param chainURL Base URL to use for building requests.
      * @param enableDebug Enable Network Log at {@link Level#BODY} level
      * @throws EosioJavaRpcProviderInitializerError thrown if the base URL passed in is null.
      */
-    public RPCProviderImpl(@NotNull String baseURL, boolean enableDebug, @NotNull String stateHistoryURL, boolean stateEnableDebug) throws EosioJavaRpcProviderInitializerError {
-        if(baseURL == null || baseURL.isEmpty()) {
+    public RPCProviderImpl(@NotNull String chainURL, boolean enableDebug, @NotNull String stateHistoryURL, boolean stateEnableDebug) throws EosioJavaRpcProviderInitializerError {
+        if(chainURL == null || chainURL.isEmpty()) {
             throw new EosioJavaRpcProviderInitializerError(EosioJavaRpcErrorConstants.RPC_PROVIDER_BASE_URL_EMPTY);
         }
-        if(stateHistoryURL == null || stateHistoryURL.isEmpty()) {
-            throw  new EosioJavaRpcProviderInitializerError(EosioJavaRpcErrorConstants.RPC_PROVIDER_STATE_HISTORY_URL_EMPTY);
-        }
-
-        this.baseURL = baseURL;
+        this.chainURL = chainURL;
         OkHttpClient.Builder httpClient = new OkHttpClient.Builder();
         if (enableDebug) {
             HttpLoggingInterceptor httpLoggingInterceptor = new HttpLoggingInterceptor();
@@ -94,13 +93,33 @@ public class RPCProviderImpl implements IRPCProvider {
             httpClient.addInterceptor(httpLoggingInterceptor);
         }
 
-        this.retrofitForBase = new Retrofit.Builder()
-                .baseUrl(this.baseURL)
+        this.retrofitForChain = new Retrofit.Builder()
+                .baseUrl(this.chainURL)
                 .addConverterFactory(GsonConverterFactory.create())
                 .client(httpClient.build())
                 .build();
 
-        this.rpcProviderApi = this.retrofitForBase.create(RPCProviderApi.class);
+        this.rpcProviderApiChain = this.retrofitForChain.create(RPCProviderApi.class);
+
+        if(stateHistoryURL == null || stateHistoryURL.isEmpty()) {
+            throw  new EosioJavaRpcProviderInitializerError(EosioJavaRpcErrorConstants.RPC_PROVIDER_STATE_HISTORY_URL_EMPTY);
+        }
+
+        this.stateHistoryURL = stateHistoryURL;
+        OkHttpClient.Builder httpStateClient = new OkHttpClient.Builder();
+        if (enableDebug) {
+            HttpLoggingInterceptor httpLoggingInterceptor = new HttpLoggingInterceptor();
+            httpLoggingInterceptor.setLevel(Level.BODY);
+            httpStateClient.addInterceptor(httpLoggingInterceptor);
+        }
+
+        this.retrofitForState = new Retrofit.Builder()
+                .baseUrl(this.stateHistoryURL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .client(httpStateClient.build())
+                .build();
+
+        this.rpcProviderApiState = this.retrofitForState.create(RPCProviderApi.class);
     }
 
     /**
@@ -147,7 +166,7 @@ public class RPCProviderImpl implements IRPCProvider {
     @Override
     public @NotNull GetInfoResponse getInfo() throws GetInfoRpcError {
         try {
-            Call<GetInfoResponse> syncCall = this.rpcProviderApi.getInfo();
+            Call<GetInfoResponse> syncCall = this.rpcProviderApiChain.getInfo();
             return processCall(syncCall);
         } catch (Exception ex) {
             throw new GetInfoRpcError(EosioJavaRpcErrorConstants.RPC_PROVIDER_ERROR_GETTING_CHAIN_INFO,
@@ -165,7 +184,7 @@ public class RPCProviderImpl implements IRPCProvider {
     public @NotNull GetBlockResponse getBlock(GetBlockRequest getBlockRequest)
             throws GetBlockRpcError {
         try {
-            Call<GetBlockResponse> syncCall = this.rpcProviderApi.getBlock(getBlockRequest);
+            Call<GetBlockResponse> syncCall = this.rpcProviderApiChain.getBlock(getBlockRequest);
             return processCall(syncCall);
         } catch (Exception ex) {
             throw new GetBlockRpcError(EosioJavaRpcErrorConstants.RPC_PROVIDER_ERROR_GETTING_BLOCK_INFO,
@@ -183,7 +202,7 @@ public class RPCProviderImpl implements IRPCProvider {
     public @NotNull GetRawAbiResponse getRawAbi(GetRawAbiRequest getRawAbiRequest)
             throws GetRawAbiRpcError {
         try {
-            Call<GetRawAbiResponse> syncCall = this.rpcProviderApi.getRawAbi(getRawAbiRequest);
+            Call<GetRawAbiResponse> syncCall = this.rpcProviderApiChain.getRawAbi(getRawAbiRequest);
             return processCall(syncCall);
         } catch (Exception ex) {
             throw new GetRawAbiRpcError(EosioJavaRpcErrorConstants.RPC_PROVIDER_ERROR_GETTING_RAW_ABI,
@@ -201,7 +220,7 @@ public class RPCProviderImpl implements IRPCProvider {
     public @NotNull GetRequiredKeysResponse getRequiredKeys(
             GetRequiredKeysRequest getRequiredKeysRequest) throws GetRequiredKeysRpcError {
         try {
-            Call<GetRequiredKeysResponse> syncCall = this.rpcProviderApi.getRequiredKeys(getRequiredKeysRequest);
+            Call<GetRequiredKeysResponse> syncCall = this.rpcProviderApiChain.getRequiredKeys(getRequiredKeysRequest);
             return processCall(syncCall);
         } catch (Exception ex) {
             throw new GetRequiredKeysRpcError(EosioJavaRpcErrorConstants.RPC_PROVIDER_ERROR_GETTING_REQUIRED_KEYS,
@@ -219,7 +238,7 @@ public class RPCProviderImpl implements IRPCProvider {
     public @NotNull PushTransactionResponse pushTransaction(
             PushTransactionRequest pushTransactionRequest) throws PushTransactionRpcError {
         try {
-            Call<PushTransactionResponse> syncCall = this.rpcProviderApi.pushTransaction(pushTransactionRequest);
+            Call<PushTransactionResponse> syncCall = this.rpcProviderApiChain.pushTransaction(pushTransactionRequest);
             return processCall(syncCall);
         } catch (Exception ex) {
             throw new PushTransactionRpcError(EosioJavaRpcErrorConstants.RPC_PROVIDER_ERROR_PUSHING_TRANSACTION,
@@ -235,7 +254,7 @@ public class RPCProviderImpl implements IRPCProvider {
      */
     public @NotNull String getAccount(RequestBody requestBody) throws RpcProviderError {
         try {
-            Call<ResponseBody> syncCall = this.rpcProviderApi.getAccount(requestBody);
+            Call<ResponseBody> syncCall = this.rpcProviderApiChain.getAccount(requestBody);
             try(ResponseBody responseBody = processCall(syncCall)) {
                 return responseBody.string();
             }
@@ -252,7 +271,7 @@ public class RPCProviderImpl implements IRPCProvider {
      */
     public @NotNull String pushTransactions(RequestBody requestBody) throws RpcProviderError {
         try {
-            Call<ResponseBody> syncCall = this.rpcProviderApi.pushTransactions(requestBody);
+            Call<ResponseBody> syncCall = this.rpcProviderApiChain.pushTransactions(requestBody);
             try(ResponseBody responseBody = processCall(syncCall)) {
                 return responseBody.string();
             }
@@ -269,7 +288,7 @@ public class RPCProviderImpl implements IRPCProvider {
      */
     public @NotNull String getBlockHeaderState(RequestBody requestBody) throws RpcProviderError {
         try {
-            Call<ResponseBody> syncCall = this.rpcProviderApi.getBlockHeaderState(requestBody);
+            Call<ResponseBody> syncCall = this.rpcProviderApiChain.getBlockHeaderState(requestBody);
             try(ResponseBody responseBody = processCall(syncCall)) {
                 return responseBody.string();
             }
@@ -286,7 +305,7 @@ public class RPCProviderImpl implements IRPCProvider {
      */
     public @NotNull String getAbi(RequestBody requestBody) throws RpcProviderError {
         try {
-            Call<ResponseBody> syncCall = this.rpcProviderApi.getAbi(requestBody);
+            Call<ResponseBody> syncCall = this.rpcProviderApiChain.getAbi(requestBody);
             try(ResponseBody responseBody = processCall(syncCall)) {
                 return responseBody.string();
             }
@@ -303,7 +322,7 @@ public class RPCProviderImpl implements IRPCProvider {
      */
     public @NotNull String getCurrencyBalance(RequestBody requestBody) throws RpcProviderError {
         try {
-            Call<ResponseBody> syncCall = this.rpcProviderApi.getCurrencyBalance(requestBody);
+            Call<ResponseBody> syncCall = this.rpcProviderApiChain.getCurrencyBalance(requestBody);
             try(ResponseBody responseBody = processCall(syncCall)) {
                 return responseBody.string();
             }
@@ -320,7 +339,7 @@ public class RPCProviderImpl implements IRPCProvider {
      */
     public @NotNull String getCurrencyStats(RequestBody requestBody) throws RpcProviderError {
         try {
-            Call<ResponseBody> syncCall = this.rpcProviderApi.getCurrencyStats(requestBody);
+            Call<ResponseBody> syncCall = this.rpcProviderApiChain.getCurrencyStats(requestBody);
             try(ResponseBody responseBody = processCall(syncCall)) {
                 return responseBody.string();
             }
@@ -337,7 +356,7 @@ public class RPCProviderImpl implements IRPCProvider {
      */
     public @NotNull String getProducers(RequestBody requestBody) throws RpcProviderError {
         try {
-            Call<ResponseBody> syncCall = this.rpcProviderApi.getProducers(requestBody);
+            Call<ResponseBody> syncCall = this.rpcProviderApiChain.getProducers(requestBody);
             try(ResponseBody responseBody = processCall(syncCall)) {
                 return responseBody.string();
             }
@@ -354,7 +373,7 @@ public class RPCProviderImpl implements IRPCProvider {
      */
     public @NotNull String getRawCodeAndAbi(RequestBody requestBody) throws RpcProviderError {
         try {
-            Call<ResponseBody> syncCall = this.rpcProviderApi.getRawCodeAndAbi(requestBody);
+            Call<ResponseBody> syncCall = this.rpcProviderApiChain.getRawCodeAndAbi(requestBody);
             try(ResponseBody responseBody = processCall(syncCall)) {
                 return responseBody.string();
             }
@@ -371,7 +390,7 @@ public class RPCProviderImpl implements IRPCProvider {
      */
     public @NotNull String getTableByScope(RequestBody requestBody) throws RpcProviderError {
         try {
-            Call<ResponseBody> syncCall = this.rpcProviderApi.getTableByScope(requestBody);
+            Call<ResponseBody> syncCall = this.rpcProviderApiChain.getTableByScope(requestBody);
             try(ResponseBody responseBody = processCall(syncCall)) {
                 return responseBody.string();
             }
@@ -388,7 +407,7 @@ public class RPCProviderImpl implements IRPCProvider {
      */
     public @NotNull String getTableRows(RequestBody requestBody) throws RpcProviderError {
         try {
-            Call<ResponseBody> syncCall = this.rpcProviderApi.getTableRows(requestBody);
+            Call<ResponseBody> syncCall = this.rpcProviderApiChain.getTableRows(requestBody);
             try(ResponseBody responseBody = processCall(syncCall)) {
                 return responseBody.string();
             }
@@ -405,7 +424,7 @@ public class RPCProviderImpl implements IRPCProvider {
      */
     public @NotNull String getCode(RequestBody requestBody) throws RpcProviderError {
         try {
-            Call<ResponseBody> syncCall = this.rpcProviderApi.getCode(requestBody);
+            Call<ResponseBody> syncCall = this.rpcProviderApiChain.getCode(requestBody);
             try(ResponseBody responseBody = processCall(syncCall)) {
                 return responseBody.string();
             }
@@ -422,7 +441,7 @@ public class RPCProviderImpl implements IRPCProvider {
      */
     public @NotNull String getActions(RequestBody requestBody) throws RpcProviderError {
         try {
-            Call<ResponseBody> syncCall = this.rpcProviderApi.getActions(requestBody);
+            Call<ResponseBody> syncCall = this.rpcProviderApiChain.getActions(requestBody);
             try(ResponseBody responseBody = processCall(syncCall)) {
                 return responseBody.string();
             }
@@ -439,7 +458,7 @@ public class RPCProviderImpl implements IRPCProvider {
      */
     public @NotNull String getTransaction(RequestBody requestBody) throws RpcProviderError {
         try {
-            Call<ResponseBody> syncCall = this.rpcProviderApi.getTransaction(requestBody);
+            Call<ResponseBody> syncCall = this.rpcProviderApiChain.getTransaction(requestBody);
             try(ResponseBody responseBody = processCall(syncCall)) {
                 return responseBody.string();
             }
@@ -456,7 +475,7 @@ public class RPCProviderImpl implements IRPCProvider {
      */
     public @NotNull String getKeyAccounts(RequestBody requestBody) throws RpcProviderError {
         try {
-            Call<ResponseBody> syncCall = this.rpcProviderApi.getKeyAccounts(requestBody);
+            Call<ResponseBody> syncCall = this.rpcProviderApiChain.getKeyAccounts(requestBody);
             try(ResponseBody responseBody = processCall(syncCall)) {
                 return responseBody.string();
             }
@@ -473,7 +492,7 @@ public class RPCProviderImpl implements IRPCProvider {
      */
     public @NotNull String getControlledAccounts(RequestBody requestBody) throws RpcProviderError {
         try {
-            Call<ResponseBody> syncCall = this.rpcProviderApi.getControlledAccounts(requestBody);
+            Call<ResponseBody> syncCall = this.rpcProviderApiChain.getControlledAccounts(requestBody);
             try(ResponseBody responseBody = processCall(syncCall)) {
                 return responseBody.string();
             }
